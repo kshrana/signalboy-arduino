@@ -1,0 +1,5 @@
+{
+  "cpu": {
+    "fqbn": "arduino:samd:nano_33_iot"
+  }
+}
