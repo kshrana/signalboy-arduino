@@ -1,6 +1,7 @@
 # Signalboy Reference Implementation – Peripheral (Arduino)
 ## Dependencies
 * ArduinoBLE (v1.3.1 verified)
+* LiquidCrystal
 
 ## Prerequisites
 ### Install _LCDKeypadShieldLib_ library
