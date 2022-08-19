@@ -1,13 +1,19 @@
 # Signalboy Reference Implementation – Peripheral (Arduino)
 ## Dependencies
-* ArduinoBLE (I used v1.3.1 for initial development)
+* ArduinoBLE (v1.3.1 verified)
+
+## Prerequisites
+### Install _LCDKeypadShieldLib_ library
+Install the _LCDKeypadShieldLib_ library by copying the included directory (at [libraries/LCDKeypadShieldLib](./libraries/LCDKeypadShieldLib)) to Arduino IDE's `libraries`-directory (typically at `~/Documents/Arduino/libraries`). Alternatively you could also symlink it to the destination by:
+```bash
+ln -s "<PATH_TO_YOUR_REPO>/signalboy-arduino/libraries/LCDKeypadShieldLib" "$HOME/Documents/Arduino/libraries/LCDKeypadShieldLib"
+```
 
 ## Install on Arduino 33 IoT
 First make sure to install ArduinoBLE:
 > To use this library, open the Library Manager in the Arduino IDE and install it from there.
 
-([ArduinoBLE - Arduino Reference](https://www.arduino.cc/reference/en/libraries/arduinoble/)
-)
+([ArduinoBLE - Arduino Reference](https://www.arduino.cc/reference/en/libraries/arduinoble/))
 
 <br/>
 
@@ -28,3 +34,20 @@ Thus you'll need to connect any serial-monitor that supports reading:
   ```bash
   cat <port> # <port> might look like `/dev/cu.usbmodem1432101`. Find <port> by running `arduino-cli board list`.
   ```
+
+### UI
+Signalboy comes with a LCD Keypad Shield featuring a lcd-display (16x2) and 6 buttons allowing for a basic interactive UI.
+
+#### General
+* When the user pushes any button, the screen's backlight is turned on.
+  * The backlight turns off automatically when the user has been inactive for 30 secs.
+* If the current state supports user-selectable actions: Pushing ↑(UP) or ↓(DOWN) will open the
+  menu and the same buttons allow for browsing the menu. Pushing SELECT on any menu-item will trigger
+  the respective action described by its label on the LCD-display. (s. [Actions](#actions) below for an overview of available actions.)
+  * The menu closes automatically when the user has been inactive for 15 secs.
+
+#### Actions
+Additionally some states might allow the user to browse a menu providing further user-selectable actions (fired by pushing the SELECT-button when the corresponding action is displayed):
+|     State     |     Action    |  Description  |
+| ------------- | ------------- | ------------- |
+|   Connected   | Reject conn.  | Discards the connection with the currently connected Bluetooth client (or _Central_ in BLE-terms), i.e. the Meta Quest headset. Note: Further connection attempts of that client are subsequently dropped for the next 30 secs. |
