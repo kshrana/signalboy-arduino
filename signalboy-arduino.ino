@@ -63,13 +63,15 @@ BLEByteCharacteristic connectionOptionsChar("a5210001-9859-499a-ad8a-1264b41a775
 // of `SIGNAL_HIGH_INTERVAL`.
 const int PIN_OUTPUT = 2;
 // INPUT which may trigger activation of the "Trigger-timer" (for DEBUG-purposes)
-const int PIN_INPUT_DEBUG = 3;
+const int PIN_INPUT_DEBUG = 11;
 
 // Pins used for the LCD-Display
 const int PIN_LCD_RS = 8;
 const int PIN_LCD_ENABLE = 9;
 const int PIN_LCD_D0 = 4;
-const int PIN_LCD_D1 = 5;
+// CAUTION: Note that we deviate from the sequence here,
+// with `PIN_LCD_D1` being set to Pin "D3".
+const int PIN_LCD_D1 = 3;
 const int PIN_LCD_D2 = 6;
 const int PIN_LCD_D3 = 7;
 
