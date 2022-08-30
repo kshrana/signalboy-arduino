@@ -28,6 +28,8 @@
 #include "Error.h"
 #include "Resources.h"
 
+// Uncomment to set Debug-Flag (or pass via compiler-flag)
+// #define DEBUG
 
 /// The states that will be displayed to the user
 /// using the LCD-display.
@@ -61,22 +63,22 @@ BLEByteCharacteristic connectionOptionsChar("a5210001-9859-499a-ad8a-1264b41a775
 
 // pin == HIGH if signal is triggered (either by "Scheduled-timer" or "Trigger-timer") for the duration
 // of `SIGNAL_HIGH_INTERVAL`.
-const int PIN_OUTPUT = 2;
+const int PIN_OUTPUT = 10;
 // INPUT which may trigger activation of the "Trigger-timer" (for DEBUG-purposes)
-const int PIN_INPUT_DEBUG = 11;
+const int PIN_INPUT_DEBUG = 12;
 
 // Pins used for the LCD-Display
-const int PIN_LCD_RS = 8;
-const int PIN_LCD_ENABLE = 9;
-const int PIN_LCD_D0 = 4;
+const int PIN_LCD_RS = 7;
+const int PIN_LCD_ENABLE = 8;
+const int PIN_LCD_D0 = 3;
 // CAUTION: Note that we deviate from the sequence here,
 // with `PIN_LCD_D1` being set to Pin "D3".
-const int PIN_LCD_D1 = 3;
-const int PIN_LCD_D2 = 6;
-const int PIN_LCD_D3 = 7;
+const int PIN_LCD_D1 = 2;
+const int PIN_LCD_D2 = 4;
+const int PIN_LCD_D3 = 6;
 
 // Set to HIGH to enable the lcd-panel's backlight.
-const int PIN_BACKLIGHT = 10;
+const int PIN_BACKLIGHT = 9;
 
 // #define CONNECTION_INTERVAL_15MS 0x000C
 #define CONNECTION_INTERVAL_20MS 0x0010
