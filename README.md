@@ -1,4 +1,9 @@
 # Signalboy Reference Implementation – Peripheral (Arduino)
+## Hardware
+![Signalboy Device circuitry](./Documentation/Hardware/Circuitry/Signalboy.png)
+
+Find the full hardware documentation under [Hardware](./Documentation/Hardware/) and its respective [**README (Hardware)**](./Documentation/Hardware/README.md).
+
 ## Dependencies
 * ArduinoBLE (v1.3.1 verified)
 * LiquidCrystal
@@ -52,3 +57,8 @@ Additionally some states might allow the user to browse a menu providing further
 |     State     |     Action    |  Description  |
 | ------------- | ------------- | ------------- |
 |   Connected   | Reject conn.  | Discards the connection with the currently connected Bluetooth client (or _Central_ in BLE-terms), i.e. the Meta Quest headset. Note: Further connection attempts of that client are subsequently dropped for the next 30 secs. |
+
+## License
+The software in this project is licensed under the [MIT License](./LICENSE).
+
+The documentation (i.e. diagrams or schematics) of the hardware in this project is licensed under the [GNU General Public License v2.0](./Documentation/Hardware/COPYING).
