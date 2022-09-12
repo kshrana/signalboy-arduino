@@ -285,6 +285,9 @@ void updateStateDisplay() {
 // MARK: - Lifecycle
 
 void setup() {
+  pinMode(PIN_OUTPUT, OUTPUT);
+  pinMode(PIN_INPUT_DEBUG, INPUT_PULLDOWN);
+
   screen.setup();
   screen.setRootViewController(&introViewController);
   screen.update();
@@ -302,9 +305,6 @@ void setup() {
   updateStateDisplay();
   screen.setRootViewController(&mainViewController);
   screen.update();
-
-  pinMode(PIN_OUTPUT, OUTPUT);
-  pinMode(PIN_INPUT_DEBUG, INPUT_PULLDOWN);
 
   // Time-library
   setSyncInterval(SYNC_INTERVAL);
