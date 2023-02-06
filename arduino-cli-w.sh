@@ -17,7 +17,7 @@ print_help() {
     echo "  monitor\tOpens a communication port with a board."
 }
 
-search_port() {
+query_port() {
   PORT="$(arduino-cli board list 2>/dev/null | grep $BOARD | awk '{print $1}')"
 
   if [[ -z "$PORT" ]]; then
@@ -38,7 +38,8 @@ operand=$1; shift
 if [[ -z "$PORT" ]]; then
   echo "PORT ($PORT) is empty or device is non-existant. Will search for a port for BOARD ($BOARD)."
   read -p "Press ENTER to continue..."
-  search_port
+  
+  query_port
 fi
 
 if [[ ! -e "$PORT" ]]; then
@@ -55,7 +56,8 @@ if [[ ! -e "$PORT" ]]; then
   if [[ "$is_port_existant" = false ]]; then
     echo "Device at PORT ($PORT) not-existant. Will search for a port for BOARD ($BOARD)."
     read -p "Press ENTER to continue..."
-    search_port
+    
+    query_port
   fi
 fi
 
