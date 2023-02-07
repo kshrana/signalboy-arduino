@@ -78,8 +78,6 @@ case "$operand" in
     while true; do
         arduino-cli monitor -p "$PORT" -q | tee -a "$log_file"
     done
-
-    echo "Upload complete."
     ;;
 
   *)
