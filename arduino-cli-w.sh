@@ -75,9 +75,7 @@ case "$operand" in
     echo "Will save terminal-log file at (PORT=$PORT): $log_file"
     read -p "Press ENTER to continue..."
 
-    while true; do
-        arduino-cli monitor -p "$PORT" -q | tee -a "$log_file"
-    done
+    arduino-cli monitor -p "$PORT" -q | tee -a "$log_file"
     ;;
 
   *)
