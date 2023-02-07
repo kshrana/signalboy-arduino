@@ -96,16 +96,14 @@ void onReceivedReferenceTimestamp(unsigned long referenceTimestamp) {
     Serial.print(networkDelay);
     Serial.println(" (number of Connection-Events)");
 
+    // Note: We'll only add half the delay (1/2 * networkDelay) for the last connection-interval.
+    //
+    // This is an approximation as we don't know when exactly the Reference-Timestamp was created
+    // in the interval of the Connection-Interval of its transmission (when working on Application Level).
     if (networkDelay > 0) {
-      adjustedReferenceTimestamp = referenceTimestamp + (networkDelay * CONNECTION_INTERVAL);
-
-      // Note: We'll only add half the delay (1/2 * networkDelay) for the last connection-interval.
-      //
-      // This is an approximation as we don't know when exactly the Reference-Timestamp was created
-      // in the interval of the Connection-Interval of its transmission (when working on Application Level).
-      // adjustedReferenceTimestamp = referenceTimestamp
-      //   + ((networkDelay - 1) * CONNECTION_INTERVAL)
-      //   + (CONNECTION_INTERVAL / 2);
+      adjustedReferenceTimestamp = referenceTimestamp
+        + ((networkDelay - 1) * CONNECTION_INTERVAL)
+        + (CONNECTION_INTERVAL / 2);
     } else {
       // This case should not be possible. But hey, for the sake of completeness:
       adjustedReferenceTimestamp = referenceTimestamp;
