@@ -16,5 +16,5 @@ struct TrainingStatus {
 /// Discards (ongoing) Time-Sync/Training, if a certain timeout-duration has elapsed
 /// since receiving the last Training-Msg (during an ongoing Training).
 void setTrainingTimeoutIfNeeded();
-void onReceivedReferenceTimestamp(unsigned long referenceTimestamp);
+void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long referenceTimestamp);
 TrainingStatus trainingStatus();

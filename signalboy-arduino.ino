@@ -498,6 +498,8 @@ void onTriggerTimerWritten(BLEDevice central, BLECharacteristic characteristic) 
 }
 
 void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
+  unsigned long _millis = millis();
+
   // central wrote new value to characteristic
   printTimestamp();
   Serial.print("on -> Characteristic event (referenceTimestamp), written: ");
@@ -505,7 +507,7 @@ void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteri
   unsigned long value = referenceTimestampChar.value();
   Serial.println(value);
 
-  onReceivedReferenceTimestamp(value);
+  onReceivedReferenceTimestamp(_millis, value);
   TrainingStatus status = trainingStatus();
 
   switch (status.statusCode) {

@@ -32,24 +32,24 @@ void setTrainingTimeoutIfNeeded() {
   }
 }
 
-void onReceivedReferenceTimestamp(unsigned long referenceTimestamp) {
-  unsigned long nowTimeUnsynced = millis();
-
+void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long referenceTimestamp) {
   // Only a single Training-Message (containing the Reference-Timestamp)
   // is allowed for each Connection-Event.
   if (receivedTrainingMsgCounter > 0) {
     unsigned long lastLocalTimestamp = receivedTrainingMsgTimestamps[receivedTrainingMsgCounter - 1];
-    if (nowTimeUnsynced - lastLocalTimestamp < TRAINING_INTERVAL) {
-      Serial.print("WARNING: Already received Training-Message for this Training-Event.");
-      Serial.print(" Will discard the received Reference-Timestamp: ");
-      Serial.println(referenceTimestamp);
+    if (receivedTime - lastLocalTimestamp < TRAINING_INTERVAL) {
+      Serial.print("WARNING: Already received Training-Message for this Training-Event");
+      Serial.print("(lastLocalTimestamp=" + String(lastLocalTimestamp) + ").");
+      Serial.print(" Will discard the received Reference-Timestamp");
+      Serial.print(" (receivedTime=" + String(receivedTime) + " value=" + String(referenceTimestamp) + ")");
+      Serial.println(".");
 
       return;
     }
   }
 
   receivedReferenceTimestamps[receivedTrainingMsgCounter] = referenceTimestamp;
-  receivedTrainingMsgTimestamps[receivedTrainingMsgCounter] = nowTimeUnsynced;
+  receivedTrainingMsgTimestamps[receivedTrainingMsgCounter] = receivedTime;
   receivedTrainingMsgCounter++;
   isSuccess = false;
 
