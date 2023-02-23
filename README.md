@@ -4,6 +4,9 @@
 
 Find the full hardware documentation under [Hardware](./Documentation/Hardware/) and its respective [**README (Hardware)**](./Documentation/Hardware/README.md).
 
+## TODO
+* [ ] Self-Test: RTC
+
 ## Dependencies
 * ArduinoBLE (v1.3.1 verified)
 * LiquidCrystal

@@ -7,6 +7,9 @@
 * DFRobot LCD Keypad Shield
 
 #### Breakout Boards
+##### RTC
+* [Adafruit DS3231 Precision RTC Breakout](https://learn.adafruit.com/adafruit-ds3231-precision-rtc-breakout)
+
 ##### Level Shifters
 * SparkFun Logic Level Converter - Bi-Directional
 

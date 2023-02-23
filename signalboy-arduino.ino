@@ -20,6 +20,7 @@
 #include <LCDKeypadShieldLib.h>
 #include "constants.h"
 #include "Logger.hpp"
+#include "rtc.hpp"
 #include "time.h"
 #include "training.h"
 #include "IntroViewController.h"
@@ -66,6 +67,9 @@ BLEByteCharacteristic connectionOptionsChar("a5210001-9859-499a-ad8a-1264b41a775
 const int PIN_OUTPUT = 10;
 // INPUT which may trigger activation of the "Trigger-timer" (for DEBUG-purposes)
 const int PIN_INPUT_DEBUG = 12;
+// Pin receiving the one-pulse-per-second signal from the RTC.
+// This should be an interrupt-capable pin.
+#define PIN_PPS A1
 
 // Pins used for the LCD-Display
 const int PIN_LCD_RS = 7;
@@ -299,6 +303,14 @@ void setup() {
   Serial1.begin(57600);
   // blockThreadUntilSerialOpen();
 
+  setupRtc();
+
+  // Keep the time in sync using the one-pulse-per-second output of the
+  // RTC as an interrupt source and calling system_tick() from the
+  // interrupt service routine.
+  pinMode(PIN_PPS, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_PPS), pps_tick, FALLING);
+
 #ifdef DEBUG
   // Shorten intro-time during development.
   delay(1000UL);
@@ -426,7 +438,7 @@ void eventLoop() {
 
   /* --- Low Priority (execution suspended during Training or when any Alarm is armed) --- */
   if (trainingStatus().statusCode == trainingPending || isScheduledTimerArmed || isTriggerTimerArmed) {
-    return;
+    return; // break loop
   }
 
   updateTimeNeedsSync();

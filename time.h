@@ -11,9 +11,9 @@ typedef enum {
   timeSet
 } timeStatus_t;
 
-unsigned long now();  // return the current time as seconds since Jan 1 1970
+/// in ms
+unsigned long now();
 void setTime(unsigned long t);
-void adjustTime(long adjustment);
 
 /* time sync functions	*/
 timeStatus_t timeStatus();                     // indicates if time has been set and recently synchronized
