@@ -58,6 +58,10 @@ Additionally some states might allow the user to browse a menu providing further
 | ------------- | ------------- | ------------- |
 |   Connected   | Reject conn.  | Discards the connection with the currently connected Bluetooth client (or _Central_ in BLE-terms), i.e. the Meta Quest headset. Note: Further connection attempts of that client are subsequently dropped for the next 30 secs. |
 
+## Known limitations
+* User interaction is not possible during Training (Time-Sync) or shortly
+after the Signalboy has received a Target-Timestamp.
+
 ## License
 The software in this project is licensed under the [MIT License](./LICENSE).
 
