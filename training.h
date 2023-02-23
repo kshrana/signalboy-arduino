@@ -8,7 +8,8 @@
 typedef enum {
   trainingNotStarted,
   trainingPending,
-  trainingSucceeded
+  trainingSucceeded,
+  trainingFailed
 } trainingStatusCode_t;
 
 struct TrainingStatus {
@@ -17,8 +18,8 @@ struct TrainingStatus {
 };
 
 /// Discards (ongoing) Time-Sync/Training, if a certain timeout-duration has elapsed
-/// since receiving the last Training-Msg (during an ongoing Training).
-void setTrainingTimeoutIfNeeded();
+/// since receiving the last Training-Msg.
+void setTrainingTimeoutIfNeeded(unsigned long now);
 void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long referenceTimestamp);
 TrainingStatus trainingStatus(void);
 
