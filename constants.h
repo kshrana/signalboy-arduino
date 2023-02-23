@@ -8,7 +8,6 @@ const unsigned long SIGNAL_HIGH_INTERVAL = 500UL;  // 500 ms
 
 const unsigned long SYNC_INTERVAL = 90000UL;  // 90 sec
 const int TRAINING_MSGS_COUNT = 3;
-const unsigned long TRAINING_INTERVAL = 20UL;  // 20 ms
 
 #define LCD_NUM_COL 16
 

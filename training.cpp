@@ -17,13 +17,13 @@ bool isSuccess = false;
 void setTrainingTimeoutIfNeeded() {
   if (receivedTrainingMsgCounter > 0) {
     int index = receivedTrainingMsgCounter - 1;
-    if (millis() - receivedTrainingMsgTimestamps[index] > TRAINING_INTERVAL) {
       printTimestamp();
       Serial.print("Training did timeout! Were some Training-Messages (BLE-Packets) lost? (received: ");
       Serial.print(receivedTrainingMsgCounter);
       Serial.print("/");
       Serial.print(TRAINING_MSGS_COUNT);
       Serial.println(")");
+    if (now - receivedTrainingMsgTimestamps[index] >= CONNECTION_INTERVAL * 2) {
 
       // Handle timeout: Reset counter
       receivedTrainingMsgCounter = 0;
