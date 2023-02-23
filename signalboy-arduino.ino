@@ -313,6 +313,9 @@ void setup() {
   // Time-library
   setSyncInterval(SYNC_INTERVAL);
 
+  // Training
+  setTimeProvider(now); // Pass `now` as time provider for training.h
+
   // begin initialization
   if (!BLE.begin()) {
     Log.println("starting Bluetooth® Low Energy module failed!");
@@ -413,7 +416,7 @@ void eventLoop() {
 
   updateOutputPin();
 
-  setTrainingTimeoutIfNeeded(now());
+  setTrainingTimeoutIfNeeded();
   
   // poll for Bluetooth® Low Energy events
   BLE.poll(0);
@@ -557,17 +560,17 @@ void onTriggerTimerWritten(BLEDevice central, BLECharacteristic characteristic) 
 }
 
 void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  unsigned long _now = now();
+  unsigned long receivedTime = now();
 
   // central wrote new value to characteristic
-  Log.print(_now);
+  Log.print(receivedTime);
   Log.print(" ms -> ");
   Log.print("on -> Characteristic event (referenceTimestamp), written: ");
 
   unsigned long value = referenceTimestampChar.value();
   Log.println(value);
 
-  onReceivedReferenceTimestamp(_now, value);
+  onReceivedReferenceTimestamp(receivedTime, value);
   TrainingStatus status = trainingStatus();
 
   switch (status.statusCode) {

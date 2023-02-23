@@ -3,9 +3,11 @@
 #include "constants.h"
 #include "Logger.hpp"
 
+getExternalTime getTimePtr = nullptr;  // pointer to external time provider function
+
 /// - value == -1 initially (no training attempt started, yet)
 /// - value > 0 during Training
-/// - value == 0 after at least one Training was finished and while no new Training started
+/// - value == 0 after at least one Training finished and while no new Training started
 int receivedTrainingMsgCounter = -1;
 
 // Reference-timestamps received during (time-sync) training
@@ -17,7 +19,24 @@ unsigned long adjustedReferenceTimestamp;
 /// `true`, if the last training was finished successfully.
 bool isSuccess = false;
 
-void setTrainingTimeoutIfNeeded(unsigned long now) {
+void setTimeProvider(getExternalTime getTimeFunction) {
+  getTimePtr = getTimeFunction;
+}
+
+bool ensureTimeProvider(void) {
+  if (!getTimePtr) {
+    Log.printTimestamp();
+    Log.println("setTrainingTimeoutIfNeeded() -> FATAL: getTimePtr is null!");
+    return false;
+  }
+
+  return true;
+}
+
+void setTrainingTimeoutIfNeeded(void) {
+  if (!ensureTimeProvider()) return;
+  unsigned long now = getTimePtr();
+
   if (receivedTrainingMsgCounter > 0) {
     int index = receivedTrainingMsgCounter - 1;
     if (now - receivedTrainingMsgTimestamps[index] >= CONNECTION_INTERVAL * 2) {
@@ -37,6 +56,8 @@ void setTrainingTimeoutIfNeeded(unsigned long now) {
 }
 
 void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long referenceTimestamp) {
+  if (!ensureTimeProvider()) return;
+
   if (receivedTrainingMsgCounter == -1) {
     // reset
     receivedTrainingMsgCounter = 0;
@@ -121,6 +142,10 @@ void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long refe
         // This case should not be possible. But hey, for the sake of completeness:
         adjustedReferenceTimestamp = referenceTimestamp;
       }
+
+      // Correct delay since receival
+      unsigned long now = getTimePtr();
+      adjustedReferenceTimestamp += now - receivedTime;
     }
 
     isSuccess = isTrainingValid;
