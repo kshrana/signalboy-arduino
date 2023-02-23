@@ -98,18 +98,23 @@ bool isBLESetupComplete = false;
 // If `true`, a "heartbeat" is emitted over the gpio-pin every 3 seconds.
 // Turned off in production.
 #ifdef DEBUG
-bool enableHeartbeat = false;
+bool isHeartbeatEnabled = false;
+
+unsigned long loopCount = 0;
+float avgLoopRuntime = 0.0;
+
+unsigned long lastPrintEventLoopStatsTime = 0;
 #endif
 
 // - Main/"Scheduled Timer"-Timer
-bool is_scheduled_timer_valid = false;
-bool is_scheduled_timer_fired = false;
+bool isScheduledTimerArmed = false;
+bool hasScheduledTimerFired = false;
 // The timestamp (synced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
 unsigned long scheduled_timer_fire_timestamp = 0;
 
 // - Alternative/"Trigger"-Timer
-bool is_trigger_timer_valid = false;
-bool is_trigger_timer_fired = false;
+bool isTriggerTimerArmed = false;
+bool hasTriggerTimerFired = false;
 // The timestamp (local-unsynced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
 unsigned long trigger_timer_fire_timestamp = 0;
 
@@ -166,19 +171,18 @@ void blockThreadUntilSerialOpen() {
 #endif
 
 void armScheduledTimer(unsigned long timestamp) {
-  // timestamp using local unsynced-`millis()` instead of synced-`now()`
   scheduled_timer_fire_timestamp = timestamp;
 
-  is_scheduled_timer_fired = false;
-  is_scheduled_timer_valid = true;
+  hasScheduledTimerFired = false;
+  isScheduledTimerArmed = true;
 }
 
 void armTriggerTimer() {
   // timestamp using local unsynced-`millis()` instead of synced-`now()`
   trigger_timer_fire_timestamp = millis();
 
-  is_trigger_timer_fired = false;
-  is_trigger_timer_valid = true;
+  hasTriggerTimerFired = false;
+  isTriggerTimerArmed = true;
 }
 
 bool inputValue = false;
@@ -378,67 +382,51 @@ void setup() {
 }
 
 void loop() {
-  // poll for Bluetooth® Low Energy events
-  BLE.poll();
+#ifdef DEBUG
+  unsigned long startTime = millis();
+#endif
   
+  eventLoop();
+
+#ifdef DEBUG
+  unsigned long endTime = millis();
+
+  if (endTime - startTime > 2) {
+    Log.println("WARNING: Loop took " + String(endTime - startTime) + "ms!");
+  }
+
+  updateEventLoopStats(startTime, endTime);
+
+  if (endTime - lastPrintEventLoopStatsTime >= 3000 && endTime != lastPrintEventLoopStatsTime) {
+    printLoopRuntimeStats();
+    resetRuntimeStats();
+
+    lastPrintEventLoopStatsTime = endTime;
+  }
+#endif /* DEBUG */
+}
+
+void eventLoop() {
+  /* --- High Priority --- */
+
   Log.writeWhileAvailable();
+
+  updateOutputPin();
+
+  setTrainingTimeoutIfNeeded(now());
+  
+  // poll for Bluetooth® Low Energy events
+  BLE.poll(0);
 
   // poll for GPIO-input pin (DEBUG)
   pollInput();
 
-  setTrainingTimeoutIfNeeded();
+  /* --- Low Priority (execution suspended during Training or when any Alarm is armed) --- */
+  if (trainingStatus().statusCode == trainingPending || isScheduledTimerArmed || isTriggerTimerArmed) {
+    return;
+  }
+
   updateTimeNeedsSync();
-
-  unsigned int nowTimeUnsynced = millis();  // local unsynced system-time
-  unsigned int nowTime = now();
-  unsigned long targetTime = targetTimestampChar.value();
-
-  PinStatus value = LOW;
-  if (is_scheduled_timer_valid) {
-    if (nowTime >= targetTime && nowTime < targetTime + SIGNAL_HIGH_INTERVAL) {
-      if (!is_scheduled_timer_fired) {
-        printTimestamp();
-        Serial.println("Fire! (Scheduled Timer)");
-      }
-      is_scheduled_timer_fired = true;
-      // Turn on
-      value = HIGH;
-    } else {
-      if (is_scheduled_timer_fired) {
-        is_scheduled_timer_valid = false;
-      }
-    }
-  }
-
-  // Also check if alternative "trigger"-mechanism applies:
-  if (is_trigger_timer_valid) {
-    if (nowTimeUnsynced >= trigger_timer_fire_timestamp && nowTimeUnsynced < trigger_timer_fire_timestamp + SIGNAL_HIGH_INTERVAL) {
-      if (!is_trigger_timer_fired) {
-        printTimestamp();
-        Serial.println("Fire! (Trigger Timer)");
-      }
-      is_trigger_timer_fired = true;
-      // Turn on
-      value = HIGH;
-    } else {
-      if (is_trigger_timer_fired) {
-        is_trigger_timer_valid = false;
-      }
-    }
-  }
-
-#ifdef DEBUG
-  // Heartbeat:
-  // Heartbeat is emitted every 3 seconds.
-  if (enableHeartbeat && nowTime % 3000 <= SIGNAL_HIGH_INTERVAL) {
-    // if (isSendingHeartbeat && nowTime % 3000 == 0) {
-    value = HIGH;
-  }
-#endif
-
-  // Finally write (signal-)value to output
-  // if (value == HIGH) Serial.println("HIGH");
-  digitalWrite(PIN_OUTPUT, value);
 
   // Handle LCD-display
   updateStateDisplay();
@@ -453,7 +441,7 @@ void blePeripheralConnectHandler(BLEDevice central) {
   Log.println(central.address());
 
 #ifdef DEBUG
-  enableHeartbeat = false;
+  // isHeartbeatEnabled = false;
 #endif
 }
 
@@ -468,8 +456,77 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
   connectionOptionsChar.writeValue(0);
 
 #ifdef DEBUG
-  enableHeartbeat = true;
+  // isHeartbeatEnabled = true;
 #endif
+}
+
+bool isScheduledTimerDue() {
+  unsigned long nowTime = now();
+  unsigned long targetTime = targetTimestampChar.value();
+
+  if (isScheduledTimerArmed) {
+    return nowTime >= targetTime && nowTime < targetTime + SIGNAL_HIGH_INTERVAL;
+  }
+
+  return false;
+}
+
+bool isTriggerTimerDue() {
+  unsigned long nowTimeUnsynced = millis();
+  
+  if (isTriggerTimerArmed) {
+    return nowTimeUnsynced >= trigger_timer_fire_timestamp && nowTimeUnsynced < trigger_timer_fire_timestamp + /* FIXME: SIGNAL_HIGH_INTERVAL */ 10;
+  }
+
+  return false;
+}
+
+void updateOutputPin() {
+  PinStatus value = LOW;
+
+  if (isScheduledTimerDue()) {
+    if (!hasScheduledTimerFired) {
+      Log.printTimestamp();
+      Log.println("Fire! (Scheduled Timer)");
+
+      hasScheduledTimerFired = true;
+    }
+
+    // Turn on
+    value = HIGH;
+  } else {
+    if (hasScheduledTimerFired) {
+      isScheduledTimerArmed = false;
+    }
+  }
+
+  if (isTriggerTimerDue()) {
+    if (!hasTriggerTimerFired) {
+      Log.printTimestamp();
+      Log.println("Fire! (Trigger Timer)");
+
+      hasTriggerTimerFired = true;
+    }
+
+    // Turn on
+    value = HIGH;
+  } else {
+    if (hasTriggerTimerFired) {
+      isTriggerTimerArmed = false;
+    }
+  }
+
+#ifdef DEBUG
+  // Heartbeat:
+  // Heartbeat is emitted every 3 seconds.
+  if (isHeartbeatEnabled && now() % 3000 <= SIGNAL_HIGH_INTERVAL) {
+    value = HIGH;
+  }
+#endif
+
+  // Finally write (signal-)value to output
+  // if (value == HIGH) Log.println("HIGH");
+  digitalWrite(PIN_OUTPUT, value);
 }
 
 void onTargetTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
@@ -526,3 +583,23 @@ void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteri
       break;
   }
 }
+
+#ifdef DEBUG
+void resetRuntimeStats() {
+  avgLoopRuntime = 0.0;
+  loopCount = 0;
+}
+
+void updateEventLoopStats(unsigned long startTime, unsigned long endTime) {  
+  avgLoopRuntime = (avgLoopRuntime * loopCount + (endTime - startTime)) / (loopCount + 1);
+
+  loopCount++;
+}
+
+char _buffer [20];
+void printLoopRuntimeStats() {
+  Log.printTimestamp();
+  snprintf(_buffer, 20, "%.2f", avgLoopRuntime);
+  Log.println("avgLoopRuntime=" + String(_buffer));
+}
+#endif
