@@ -19,9 +19,9 @@
 #include <ArduinoBLE.h>
 #include <LCDKeypadShieldLib.h>
 #include "constants.h"
+#include "Logger.hpp"
 #include "time.h"
 #include "training.h"
-#include "logger.h"
 #include "IntroViewController.h"
 #include "ErrorViewController.h"
 #include "MainViewController.h"
@@ -88,7 +88,6 @@ const int PIN_BACKLIGHT = 9;
 #define CONNECTION_INTERVAL_TRAINING CONNECTION_INTERVAL_20MS
 
 #define TIMEOUT_INTRO_SCREEN 3 * 1000UL  // in ms
-
 
 /// The state that is currently displayed to the user
 /// using the LCD-display.
@@ -186,8 +185,8 @@ bool inputValue = false;
 void pollInput() {
   bool newValue = digitalRead(PIN_INPUT_DEBUG);
   if (newValue && !inputValue) {
-    printTimestamp();
-    Serial.println("Rising-edge detected. Arming trigger timer...");
+    Log.printTimestamp();
+    Log.println("Rising-edge detected. Arming trigger timer...");
     // rising edge
     armTriggerTimer();
   }
@@ -200,10 +199,10 @@ void updateTimeNeedsSync() {
   bool newValue = timeStatus() != timeSet;
 
   if (newValue != timeNeedsSync) {
-    printTimestamp();
+    Log.printTimestamp();
     byte data = newValue ? 0x01 : 0x00;
-    Serial.print(": update timeNeedsSync-characteristic, new value: ");
-    Serial.println(data);
+    Log.print(": update timeNeedsSync-characteristic, new value: ");
+    Log.println(data);
 
     timeNeedsSyncChar.writeValue(data);
 
@@ -213,10 +212,10 @@ void updateTimeNeedsSync() {
     // Background: Changing the Connection Interval for an established connection seems
     // not to be supported currently by ArduinoBLE-library.
     // if (newValue) {
-    //   Serial.println("Will change Connection-Interval for Training-Mode.");
+    //   Log.println("Will change Connection-Interval for Training-Mode.");
     //   BLE.setConnectionInterval(CONNECTION_INTERVAL_TRAINING, CONNECTION_INTERVAL_TRAINING);
     // } else {
-    //   Serial.println("Will change Connection-Interval for Default-Mode. (time is synced)");
+    //   Log.println("Will change Connection-Interval for Default-Mode. (time is synced)");
     //   BLE.setConnectionInterval(CONNECTION_INTERVAL_DEFAULT, CONNECTION_INTERVAL_DEFAULT);
     // }
   }
@@ -293,6 +292,7 @@ void setup() {
   screen.update();
 
   Serial.begin(9600);
+  Serial1.begin(57600);
   // blockThreadUntilSerialOpen();
 
 #ifdef DEBUG
@@ -311,7 +311,7 @@ void setup() {
 
   // begin initialization
   if (!BLE.begin()) {
-    Serial.println("starting Bluetooth® Low Energy module failed!");
+    Log.println("starting Bluetooth® Low Energy module failed!");
 
     errorViewController.setError(new Signalboy::Error(ERROR_CODE_BLE_INIT_FAILURE, ERROR_MSG_BLE_INIT_FAILURE));
     screen.setRootViewController(&errorViewController);
@@ -374,12 +374,14 @@ void setup() {
   BLE.advertise();
 
   isBLESetupComplete = true;
-  Serial.println(("Bluetooth® device active, waiting for connections..."));
+  Log.println(("Bluetooth® device active, waiting for connections..."));
 }
 
 void loop() {
   // poll for Bluetooth® Low Energy events
   BLE.poll();
+  
+  Log.writeWhileAvailable();
 
   // poll for GPIO-input pin (DEBUG)
   pollInput();
@@ -444,11 +446,11 @@ void loop() {
 }
 
 void blePeripheralConnectHandler(BLEDevice central) {
-  printTimestamp();
+  Log.printTimestamp();
 
   // central connected event handler
-  Serial.print("Connected event, central: ");
-  Serial.println(central.address());
+  Log.print("Connected event, central: ");
+  Log.println(central.address());
 
 #ifdef DEBUG
   enableHeartbeat = false;
@@ -456,11 +458,11 @@ void blePeripheralConnectHandler(BLEDevice central) {
 }
 
 void blePeripheralDisconnectHandler(BLEDevice central) {
-  printTimestamp();
+  Log.printTimestamp();
 
   // central disconnected event handler
-  Serial.print("Disconnected event, central: ");
-  Serial.println(central.address());
+  Log.print("Disconnected event, central: ");
+  Log.println(central.address());
 
   // Reset connection options.
   connectionOptionsChar.writeValue(0);
@@ -471,49 +473,50 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 }
 
 void onTargetTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  printTimestamp();
+  Log.printTimestamp();
 
   // central wrote new value to characteristic
-  Serial.print("on -> Characteristic event (targetTimestamp), value: ");
+  Log.print("on -> Characteristic event (targetTimestamp), value: ");
 
   unsigned long value = targetTimestampChar.value();
-  Serial.print(value);
+  Log.print(value);
 
-  Serial.print(", delta: ");
-  Serial.println(value - now());
+  Log.print(", delta: ");
+  Log.println(value - now());
 
   armScheduledTimer(value);
 }
 
 void onTriggerTimerWritten(BLEDevice central, BLECharacteristic characteristic) {
-  printTimestamp();
+  Log.printTimestamp();
 
   // central wrote new value to characteristic
-  Serial.print("on -> Characteristic event (triggerOutput), value: ");
+  Log.print("on -> Characteristic event (triggerOutput), value: ");
 
   byte value = triggerTimerChar.value();
-  Serial.println(value);
+  Log.println(value);
 
   armTriggerTimer();
 }
 
 void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  unsigned long _millis = millis();
+  unsigned long _now = now();
 
   // central wrote new value to characteristic
-  printTimestamp();
-  Serial.print("on -> Characteristic event (referenceTimestamp), written: ");
+  Log.print(_now);
+  Log.print(" ms -> ");
+  Log.print("on -> Characteristic event (referenceTimestamp), written: ");
 
   unsigned long value = referenceTimestampChar.value();
-  Serial.println(value);
+  Log.println(value);
 
-  onReceivedReferenceTimestamp(_millis, value);
+  onReceivedReferenceTimestamp(_now, value);
   TrainingStatus status = trainingStatus();
 
   switch (status.statusCode) {
     case trainingSucceeded:
-      Serial.print("Training succeeded. Setting time with synced timestamp (adjusted by network delay): ");
-      Serial.println(status.adjustedReferenceTimestamp);
+      Log.print("Training succeeded. Setting time with synced timestamp (adjusted by network delay): ");
+      Log.println(status.adjustedReferenceTimestamp);
 
       setTime(status.adjustedReferenceTimestamp);
       updateTimeNeedsSync();
