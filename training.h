@@ -2,6 +2,9 @@
   Training (Time-Sync)
 */
 
+#ifndef training_h
+#define training_h
+
 typedef enum {
   trainingNotStarted,
   trainingPending,
@@ -17,4 +20,6 @@ struct TrainingStatus {
 /// since receiving the last Training-Msg (during an ongoing Training).
 void setTrainingTimeoutIfNeeded();
 void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long referenceTimestamp);
-TrainingStatus trainingStatus();
+TrainingStatus trainingStatus(void);
+
+#endif /* training_h */

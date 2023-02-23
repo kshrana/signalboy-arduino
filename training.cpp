@@ -114,7 +114,7 @@ void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long refe
   }
 }
 
-TrainingStatus trainingStatus() {
+TrainingStatus trainingStatus(void) {
   trainingStatusCode_t statusCode;
   if (receivedTrainingMsgCounter > 0) {
     statusCode = trainingPending;
