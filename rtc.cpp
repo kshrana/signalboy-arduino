@@ -1,6 +1,7 @@
 #include <RTClib.h>
 
 #include "rtc.hpp"
+#include "Globals.hpp"
 #include "Logger.hpp"
 
 RTC_DS3231 rtc;

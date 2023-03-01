@@ -19,6 +19,7 @@
 #include <ArduinoBLE.h>
 #include <LCDKeypadShieldLib.h>
 #include "constants.h"
+#include "Globals.hpp"
 #include "Logger.hpp"
 #include "rtc.hpp"
 #include "time.h"
@@ -28,9 +29,6 @@
 #include "MainViewController.h"
 #include "Error.h"
 #include "Resources.h"
-
-// Uncomment to set Debug-Flag (or pass via compiler-flag)
-// #define DEBUG
 
 /// The states that will be displayed to the user
 /// using the LCD-display.
@@ -607,7 +605,6 @@ void resetRuntimeStats() {
 
 void updateEventLoopStats(unsigned long startTime, unsigned long endTime) {  
   avgLoopRuntime = (avgLoopRuntime * loopCount + (endTime - startTime)) / (loopCount + 1);
-
   loopCount++;
 }
 

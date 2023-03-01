@@ -10,17 +10,13 @@
 
 */
 
-// Define exported Singleton (s. Logger.hpp)
-Logger Log;
-
-#define SERIAL Serial1
 // 1KiB
 #define SIZE_BUFFER 1024
 
 static const char endl[] = "\r\n";
 static const size_t endlLength = strlen(endl);
 
-Logger::Logger() {
+Logger::Logger(arduino::HardwareSerial *serial) : serialPtr(serial) {
   // reserve memory for String used as a buffer
   buffer.reserve(SIZE_BUFFER);
 }
@@ -28,30 +24,35 @@ Logger::Logger() {
 /// Transmits the amount of outgoing (buffered) serial data that Serial
 /// is capable to write without blocking.
 void Logger::writeWhileAvailable() {
+  if (!ensureSerial()) return;
+
   // check amount of data that Serial is capable to write without blocking
-  unsigned int serialAvailableForWrite = SERIAL.availableForWrite();
+  unsigned int serialAvailableForWrite = serialPtr->availableForWrite();
   unsigned int chunkSize = min(buffer.length(), serialAvailableForWrite);
 
   if (chunkSize > 0) {
-    SERIAL.write(buffer.c_str(), chunkSize);
+    serialPtr->write(buffer.c_str(), chunkSize);
     buffer.remove(0, chunkSize);
   }
 }
 
 /// Waits for the transmission of outgoing (buffered) serial data to complete.
 void Logger::flush() {
+  if (!ensureSerial()) return;
+
   unsigned int size = buffer.length();
 
   if (size > 0) {
-    SERIAL.write(buffer.c_str(), size);
+    serialPtr->write(buffer.c_str(), size);
     buffer.remove(0, size);
 
-    SERIAL.flush();
+    serialPtr->flush();
   }
 }
 
-bool Logger::print(const char str[], bool shouldAppendEndl) {
+bool Logger::print(const char str[], bool shouldAppendEndl) {  
   if (!str) return false;
+  if (!ensureSerial()) return true;
 
   // new length of buffer
   size_t length = buffer.length() + strlen(str) + (shouldAppendEndl ? endlLength : 0);
@@ -101,16 +102,21 @@ void Logger::printTimestamp() {
   print(" -> ");
 }
 
+/// Returns `true`, when Serial is available.
+bool Logger::ensureSerial() {
+    return (bool)serialPtr;
+}
+
 void Logger::handleBufferOverflow() {
   unsigned int size = buffer.length();
 
-  SERIAL.println();
-  SERIAL.println();
-  SERIAL.print("WARNING: Buffer overflow! Logs will be dropped.");
-  SERIAL.println(" (" + String(size) + " B).");
+  serialPtr->println();
+  serialPtr->println();
+  serialPtr->print("WARNING: Buffer overflow! Logs will be dropped.");
+  serialPtr->println(" (" + String(size) + " B).");
 
-  SERIAL.println();
-  SERIAL.println();
+  serialPtr->println();
+  serialPtr->println();
 
   // Clear buffer
   buffer.remove(0, size);

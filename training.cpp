@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "training.h"
 #include "constants.h"
+#include "Globals.hpp"
 #include "Logger.hpp"
 
 getExternalTime getTimePtr = nullptr;  // pointer to external time provider function

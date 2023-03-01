@@ -4,7 +4,7 @@
 
 class Logger {
 public:
-  Logger();
+  Logger(arduino::HardwareSerial *serial);
 
   void writeWhileAvailable();
   void flush();
@@ -28,6 +28,9 @@ public:
   void printTimestamp();
 
 private:
+  /// The destination serial interface.
+  arduino::HardwareSerial *serialPtr;
+
   // string to buffer output
   arduino::String buffer;
 
@@ -40,10 +43,9 @@ private:
   bool print(long n, bool shouldAppendEndl);
   bool print(unsigned long n, bool shouldAppendEndl);
 
+  /// Returns `true`, when Serial is available.
+  bool ensureSerial();
   void handleBufferOverflow();
 };
-
-// Singleton
-extern Logger Log;
 
 #endif /* Logger_hpp */
