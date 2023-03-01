@@ -14,7 +14,6 @@ Find the original work on [GitHub](https://github.com/mich1342/D1RobotLCDKeypadS
 #include <LiquidCrystal.h>
 #include "LCDKeypadScreen.h"
 #include "LCDKeypadShieldLib.h"
-#include "AnalogReadingModeSetup.h"
 
 // Constants
 #define DEBOUNCE_DELAY 50UL            // in ms
@@ -57,16 +56,17 @@ void LCDKeypadScreen::setRootViewController(ViewController *viewController) {
 }
 
 Button_t read_LCD_buttons() {
-  int adc_key_in = analogReadIfSafe(A0);  // read the value from the sensor
+  int adc_key_in = analogRead(A0);  // read the value from the sensor
+
   // my buttons when read are centered at these valies: 0, 144, 329, 504, 741
   // we add approx 50 to those values and check to see if we are close
-  if (adc_key_in >= 975) return btnNONE;  // We make this the 1st option for speed reasons since it will be the most likely result
+  if (adc_key_in >= 810) return btnNONE;  // We make this the 1st option for speed reasons since it will be the most likely result
   // For V1.0 use this threshold
-  if (adc_key_in < 120) return btnRIGHT;
-  if (adc_key_in < 260) return btnUP;
-  if (adc_key_in < 500) return btnDOWN;
-  if (adc_key_in < 700) return btnLEFT;
-  if (adc_key_in < 975) return btnSELECT;
+  if (adc_key_in < 100) return btnRIGHT;
+  if (adc_key_in < 300) return btnUP;
+  if (adc_key_in < 485) return btnDOWN;
+  if (adc_key_in < 670) return btnLEFT;
+  if (adc_key_in < 865) return btnSELECT;
 
   return btnNONE;  // when all others fail, return this...
 }
@@ -83,8 +83,6 @@ void LCDKeypadScreen::handleBacklightTimeoutIfNeeded(unsigned long now) {
 }
 
 void LCDKeypadScreen::setup() {
-  setupAnalogReadingFor5vAREF();
-
   pinMode(m_pin_backlight_enable, OUTPUT);
   setBacklightActive(true);
 
