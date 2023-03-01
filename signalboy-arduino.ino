@@ -488,7 +488,7 @@ bool isTriggerTimerDue() {
   unsigned long nowTimeUnsynced = millis();
   
   if (isTriggerTimerArmed) {
-    return nowTimeUnsynced >= trigger_timer_fire_timestamp && nowTimeUnsynced < trigger_timer_fire_timestamp + /* FIXME: SIGNAL_HIGH_INTERVAL */ 10;
+    return nowTimeUnsynced >= trigger_timer_fire_timestamp && nowTimeUnsynced < trigger_timer_fire_timestamp + SIGNAL_HIGH_INTERVAL;
   }
 
   return false;
