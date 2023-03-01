@@ -16,8 +16,6 @@ unsigned int lastTickTock = 0;
 void printSqwMode() {
   Ds3231SqwPinMode mode = rtc.readSqwPinMode();
 
-  millis();
-
   Log.print("Sqw Pin Mode: ");
   switch (mode) {
     case DS3231_OFF: Log.println("OFF"); break;
