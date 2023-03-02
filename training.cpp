@@ -20,6 +20,22 @@ unsigned long adjustedReferenceTimestamp;
 /// `true`, if the last training was finished successfully.
 bool isSuccess = false;
 
+/// Takes the network delay specified in ms and returns the network delay
+/// as number of Connection-Events.
+int calculateNetworkDelay(unsigned long elapsed) {
+  /// Delay in number of Connection-Events
+  int networkDelay = elapsed / CONNECTION_INTERVAL;
+  // Discussion: While the Training Messages are ideally expected to arrive with
+  // a fixed delay of n-times Connection Events, that received time may not be
+  // exactly accurate on application level. Thus the network delay is just an
+  // approximation.
+  if (elapsed % CONNECTION_INTERVAL >= CONNECTION_INTERVAL / 2) {
+    networkDelay++;
+  }
+
+  return networkDelay;
+}
+
 void setTimeProvider(getExternalTime getTimeFunction) {
   getTimePtr = getTimeFunction;
 }
@@ -40,7 +56,9 @@ void setTrainingTimeoutIfNeeded(void) {
 
   if (receivedTrainingMsgCounter > 0) {
     int index = receivedTrainingMsgCounter - 1;
-    if (now - receivedTrainingMsgTimestamps[index] >= CONNECTION_INTERVAL * 2) {
+    int networkDelay = calculateNetworkDelay(now - receivedTrainingMsgTimestamps[index]);
+
+    if (networkDelay > 1) {
       Log.print(now);
       Log.print(" ms -> ");
       Log.print("Training did timeout! Were some Training-Messages (BLE-Packets) lost? (received: ");
@@ -85,14 +103,7 @@ void onReceivedReferenceTimestamp(unsigned long receivedTime, unsigned long refe
       unsigned long referenceDelay = receivedReferenceTimestamps[i] - receivedReferenceTimestamps[i - 1];
 
       /// Delay in number of Connection-Events
-      int networkDelay = elapsed / CONNECTION_INTERVAL;
-      // Discussion: While the Training Messages are ideally expected to arrive with
-      // a fixed delay of n-times Connection Events, that received time may not be
-      // exactly accurate on application level. Thus the network delay is just an
-      // approximation.
-      if (elapsed % CONNECTION_INTERVAL >= CONNECTION_INTERVAL / 2) {
-        networkDelay++;
-      }
+      int networkDelay = calculateNetworkDelay(elapsed);
 
       Log.print(String(i - 1) + " -> " + String(i));
       Log.print(String("\t") + "referenceDelay: " + String(referenceDelay) + " (ms)");
