@@ -16,6 +16,7 @@ Find the original work on [GitHub](https://github.com/mich1342/D1RobotLCDKeypadS
 #include "LCDKeypadShieldLib.h"
 
 // Constants
+#define ANALOG_READ_DELAY 20UL         // in ms
 #define DEBOUNCE_DELAY 50UL            // in ms
 #define TIMEOUT_BACKLIGHT 20 * 1000UL  // in ms
 
@@ -36,6 +37,8 @@ LCDKeypadScreen::LCDKeypadScreen(
     m_lcdLine2(""),
     m_nextLcdLine1(""),
     m_nextLcdLine2(""),
+    m_lastAdcKeyIn(1023),
+    m_lastAnalogReadTime(0UL),
     m_isBacklightActive(false),
     m_buttonState(btnNONE),
     m_lastButtonState(btnNONE),
@@ -55,18 +58,28 @@ void LCDKeypadScreen::setRootViewController(ViewController *viewController) {
   m_rootViewControllerPtr = viewController;
 }
 
-Button_t read_LCD_buttons() {
-  int adc_key_in = analogRead(A0);  // read the value from the sensor
+Button_t LCDKeypadScreen::readLcdButtons() {  
+  int adcKeyIn;
+
+  // Throttle analog readings as analogRead() takes ~1ms.
+  if (millis() - m_lastAnalogReadTime >= ANALOG_READ_DELAY) {
+    adcKeyIn = analogRead(A0);  // read the value from the sensor
+    m_lastAnalogReadTime = millis();
+  } else {
+    adcKeyIn = m_lastAdcKeyIn;
+  }
+
+  m_lastAdcKeyIn = adcKeyIn;
 
   // my buttons when read are centered at these valies: 0, 144, 329, 504, 741
   // we add approx 50 to those values and check to see if we are close
-  if (adc_key_in >= 810) return btnNONE;  // We make this the 1st option for speed reasons since it will be the most likely result
+  if (adcKeyIn >= 810) return btnNONE;  // We make this the 1st option for speed reasons since it will be the most likely result
   // For V1.0 use this threshold
-  if (adc_key_in < 100) return btnRIGHT;
-  if (adc_key_in < 300) return btnUP;
-  if (adc_key_in < 485) return btnDOWN;
-  if (adc_key_in < 670) return btnLEFT;
-  if (adc_key_in < 865) return btnSELECT;
+  if (adcKeyIn < 100) return btnRIGHT;
+  if (adcKeyIn < 300) return btnUP;
+  if (adcKeyIn < 485) return btnDOWN;
+  if (adcKeyIn < 670) return btnLEFT;
+  if (adcKeyIn < 865) return btnSELECT;
 
   return btnNONE;  // when all others fail, return this...
 }
@@ -158,7 +171,7 @@ void LCDKeypadScreen::update() {
     m_lcdLine2 = m_nextLcdLine2;
   }
 
-  Button_t reading = read_LCD_buttons();
+  Button_t reading = readLcdButtons();
   // If the switch changed, due to noise or pressing:
   if (reading != m_lastButtonState) {
     // reset the debouncing timer

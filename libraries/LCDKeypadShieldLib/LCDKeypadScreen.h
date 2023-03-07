@@ -61,6 +61,10 @@ private:
 
   ViewController *m_rootViewControllerPtr;
 
+  int m_lastAdcKeyIn;
+  unsigned long m_lastAnalogReadTime;
+  Button_t readLcdButtons();
+
   /// `true`, if backlight is active.
   bool m_isBacklightActive;
   Button_t m_buttonState;            // the current reading from the A0 pin
