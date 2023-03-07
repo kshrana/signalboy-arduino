@@ -4,7 +4,7 @@
 #define SOFTWARE_REVISION 1
 
 const unsigned long CONNECTION_INTERVAL = 20UL;    // 20 ms
-const unsigned long SIGNAL_HIGH_INTERVAL = 500UL;  // 500 ms
+const unsigned long SIGNAL_HIGH_INTERVAL = 100UL;  // 100 ms
 
 const unsigned long SYNC_INTERVAL = 90000UL;  // 90 sec
 const int TRAINING_MSGS_COUNT = 3;
