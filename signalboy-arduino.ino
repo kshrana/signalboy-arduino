@@ -112,13 +112,13 @@ unsigned long lastPrintEventLoopStatsTime = 0;
 bool isScheduledTimerArmed = false;
 bool hasScheduledTimerFired = false;
 // The timestamp (synced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
-unsigned long scheduled_timer_fire_timestamp = 0;
+unsigned long scheduledTimerFireTimestamp = 0;
 
 // - Alternative/"Trigger"-Timer
 bool isTriggerTimerArmed = false;
 bool hasTriggerTimerFired = false;
 // The timestamp (local-unsynced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
-unsigned long trigger_timer_fire_timestamp = 0;
+unsigned long triggerTimerFireTimestamp = 0;
 
 /* --- LCD-Display --- */
 
@@ -173,7 +173,7 @@ void blockThreadUntilSerialOpen() {
 #endif
 
 void armScheduledTimer(unsigned long timestamp) {
-  scheduled_timer_fire_timestamp = timestamp;
+  scheduledTimerFireTimestamp = timestamp;
 
   hasScheduledTimerFired = false;
   isScheduledTimerArmed = true;
@@ -181,7 +181,7 @@ void armScheduledTimer(unsigned long timestamp) {
 
 void armTriggerTimer() {
   // timestamp using local unsynced-`millis()` instead of synced-`now()`
-  trigger_timer_fire_timestamp = millis();
+  triggerTimerFireTimestamp = millis();
 
   hasTriggerTimerFired = false;
   isTriggerTimerArmed = true;
@@ -475,10 +475,9 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 
 bool isScheduledTimerDue() {
   unsigned long nowTime = now();
-  unsigned long targetTime = targetTimestampChar.value();
 
   if (isScheduledTimerArmed) {
-    return nowTime >= targetTime && nowTime < targetTime + SIGNAL_HIGH_INTERVAL;
+    return nowTime >= scheduledTimerFireTimestamp && nowTime <= scheduledTimerFireTimestamp + SIGNAL_HIGH_INTERVAL;
   }
 
   return false;
@@ -488,7 +487,7 @@ bool isTriggerTimerDue() {
   unsigned long nowTimeUnsynced = millis();
   
   if (isTriggerTimerArmed) {
-    return nowTimeUnsynced >= trigger_timer_fire_timestamp && nowTimeUnsynced < trigger_timer_fire_timestamp + SIGNAL_HIGH_INTERVAL;
+    return nowTimeUnsynced >= triggerTimerFireTimestamp && nowTimeUnsynced <= triggerTimerFireTimestamp + SIGNAL_HIGH_INTERVAL;
   }
 
   return false;
@@ -499,7 +498,8 @@ void updateOutputPin() {
 
   if (isScheduledTimerDue()) {
     if (!hasScheduledTimerFired) {
-      Log.printTimestamp();
+      Log.print(millisRtc(false));
+      Log.print(" ms (millisRtc) -> ");
       Log.println("Fire! (Scheduled Timer)");
 
       hasScheduledTimerFired = true;
@@ -515,7 +515,8 @@ void updateOutputPin() {
 
   if (isTriggerTimerDue()) {
     if (!hasTriggerTimerFired) {
-      Log.printTimestamp();
+      Log.print(millisRtc(false));
+      Log.print(" ms (millisRtc) -> ");
       Log.println("Fire! (Trigger Timer)");
 
       hasTriggerTimerFired = true;
@@ -532,7 +533,7 @@ void updateOutputPin() {
 #ifdef DEBUG
   // Heartbeat:
   // Heartbeat is emitted every 3 seconds.
-  if (isHeartbeatEnabled && now() % 3000 <= SIGNAL_HIGH_INTERVAL) {
+  if (isHeartbeatEnabled && millisRtc(false) % 3000 <= SIGNAL_HIGH_INTERVAL) {
     value = HIGH;
   }
 #endif
@@ -543,7 +544,8 @@ void updateOutputPin() {
 }
 
 void onTargetTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  Log.printTimestamp();
+  unsigned long _now = now();
+  Log.print(String(_now) + " -> ");
 
   // central wrote new value to characteristic
   Log.print("on -> Characteristic event (targetTimestamp), value: ");
@@ -552,7 +554,7 @@ void onTargetTimestampWritten(BLEDevice central, BLECharacteristic characteristi
   Log.print(value);
 
   Log.print(", delta: ");
-  Log.println(value - now());
+  Log.println(value - _now);
 
   armScheduledTimer(value);
 }
