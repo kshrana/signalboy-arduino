@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <MemoryFree.h>
 #include "Logger.hpp"
-#include "time.h"
+#include "rtc.hpp"
 
 /*
 
@@ -97,7 +97,7 @@ bool Logger::println(long n) { return print(n, true); }
 bool Logger::println(unsigned long n) { return print(n, true); }
 
 void Logger::printTimestamp() {
-  print(String(now()) + " ms");
+  print(String(millisRtc(false)) + " ms");
   print(" (free RAM: " + String(freeMemory(), DEC) + ")");  // print how much RAM is available
   print(" -> ");
 }

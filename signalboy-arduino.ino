@@ -91,6 +91,9 @@ const int PIN_BACKLIGHT = 9;
 
 #define TIMEOUT_INTRO_SCREEN 3 * 1000UL  // in ms
 
+/// Currently configured Connection Interval (BLE).
+uint16_t connectionInterval = 0;
+
 /// The state that is currently displayed to the user
 /// using the LCD-display.
 State_t displayedState;
@@ -111,14 +114,18 @@ unsigned long lastPrintEventLoopStatsTime = 0;
 // - Main/"Scheduled Timer"-Timer
 bool isScheduledTimerArmed = false;
 bool hasScheduledTimerFired = false;
-// The timestamp (synced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
-unsigned long scheduledTimerFireTimestamp = 0;
+/// The timestamp (synced time) at which timer was armed.
+unsigned long lastScheduledTimerArmedTime = 0;
+/// The delay after which the armed timer will begin to fire (for the duration of `SIGNAL_HIGH_INTERVAL`).
+unsigned long scheduledTimerDelay = 0;
 
 // - Alternative/"Trigger"-Timer
 bool isTriggerTimerArmed = false;
 bool hasTriggerTimerFired = false;
-// The timestamp (local-unsynced time) at which HIGH output signal will _begin_ to be fired (for the duration of `SIGNAL_HIGH_INTERVAL`)
-unsigned long triggerTimerFireTimestamp = 0;
+/// The timestamp (unsynced time) at which timer was armed.
+unsigned long lastTriggerTimerArmedTime = 0;
+/// The delay after which the armed timer will begin to fire (for the duration of `SIGNAL_HIGH_INTERVAL`).
+unsigned long triggerTimerDelay = 0;
 
 /* --- LCD-Display --- */
 
@@ -172,16 +179,33 @@ void blockThreadUntilSerialOpen() {
 }
 #endif
 
-void armScheduledTimer(unsigned long timestamp) {
-  scheduledTimerFireTimestamp = timestamp;
+// TimeProvider routine for `training.h`
+unsigned long _millisRtc() {
+  return millisRtc(false);
+}
+
+uint16_t getConnectionInterval() {
+  return connectionInterval;
+}
+
+void setConnectionInterval(uint16_t interval) {
+  connectionInterval = interval;
+  BLE.setConnectionInterval(interval, interval);
+}
+
+void armScheduledTimer(unsigned long delay) {
+  scheduledTimerDelay = delay;
+  // synced time: `now()`
+  lastScheduledTimerArmedTime = now();
 
   hasScheduledTimerFired = false;
   isScheduledTimerArmed = true;
 }
 
-void armTriggerTimer() {
-  // timestamp using local unsynced-`millis()` instead of synced-`now()`
-  triggerTimerFireTimestamp = millis();
+void armTriggerTimer(unsigned long delay) {
+  triggerTimerDelay = delay;
+  // unsynced time: `millisRtc()`
+  lastTriggerTimerArmedTime = millisRtc(false);
 
   hasTriggerTimerFired = false;
   isTriggerTimerArmed = true;
@@ -193,8 +217,10 @@ void pollInput() {
   if (newValue && !inputValue) {
     Log.printTimestamp();
     Log.println("Rising-edge detected. Arming trigger timer...");
-    // rising edge
-    armTriggerTimer();
+
+    // rising edge -> fire timer immediately
+    armTriggerTimer(millisRtc(false));
+    updateOutputPin();
   }
 
   inputValue = newValue;
@@ -219,10 +245,10 @@ void updateTimeNeedsSync() {
     // not to be supported currently by ArduinoBLE-library.
     // if (newValue) {
     //   Log.println("Will change Connection-Interval for Training-Mode.");
-    //   BLE.setConnectionInterval(CONNECTION_INTERVAL_TRAINING, CONNECTION_INTERVAL_TRAINING);
+    //   setConnectionInterval(CONNECTION_INTERVAL_TRAINING);
     // } else {
     //   Log.println("Will change Connection-Interval for Default-Mode. (time is synced)");
-    //   BLE.setConnectionInterval(CONNECTION_INTERVAL_DEFAULT, CONNECTION_INTERVAL_DEFAULT);
+    //   setConnectionInterval(CONNECTION_INTERVAL_DEFAULT);
     // }
   }
 }
@@ -324,7 +350,7 @@ void setup() {
   setSyncInterval(SYNC_INTERVAL);
 
   // Training
-  setTimeProvider(now); // Pass `now` as time provider for training.h
+  setTimeProvider(_millisRtc); // Pass `millisRtc()`-function as time provider for training.h
 
   // begin initialization
   if (!BLE.begin()) {
@@ -340,8 +366,8 @@ void setup() {
 
   // @WORKAROUND[1]: Set Connection-Interval for Training-Mode.
   // Search for `WORKAROUND[1]` for further information.
-  // BLE.setConnectionInterval(CONNECTION_INTERVAL_DEFAULT, CONNECTION_INTERVAL_DEFAULT);
-  BLE.setConnectionInterval(CONNECTION_INTERVAL_TRAINING, CONNECTION_INTERVAL_TRAINING);
+  // setConnectionInterval(CONNECTION_INTERVAL_DEFAULT);
+  setConnectionInterval(CONNECTION_INTERVAL_TRAINING);
   // set the local name peripheral advertises
   BLE.setLocalName("Signalboy_1");
   // set the UUID for the service this peripheral advertises
@@ -422,6 +448,7 @@ void loop() {
 void eventLoop() {
   /* --- High Priority --- */
 
+  // Non-blocking (only write while immediate available)
   Log.writeWhileAvailable();
 
   updateOutputPin();
@@ -473,21 +500,23 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 #endif
 }
 
-bool isScheduledTimerDue() {
+bool isScheduledTimerDue(bool isArmed) {
   unsigned long nowTime = now();
+  unsigned long elapsed = nowTime - lastScheduledTimerArmedTime;
 
-  if (isScheduledTimerArmed) {
-    return nowTime >= scheduledTimerFireTimestamp && nowTime <= scheduledTimerFireTimestamp + SIGNAL_HIGH_INTERVAL;
+  if (isArmed) {
+    return elapsed >= scheduledTimerDelay && elapsed <= scheduledTimerDelay + SIGNAL_HIGH_INTERVAL;
   }
 
   return false;
 }
 
-bool isTriggerTimerDue() {
-  unsigned long nowTimeUnsynced = millis();
+bool isTriggerTimerDue(bool isArmed) {
+  unsigned long nowTimeUnsynced = millisRtc(false);
+  unsigned long elapsed = nowTimeUnsynced - lastTriggerTimerArmedTime;
   
-  if (isTriggerTimerArmed) {
-    return nowTimeUnsynced >= triggerTimerFireTimestamp && nowTimeUnsynced <= triggerTimerFireTimestamp + SIGNAL_HIGH_INTERVAL;
+  if (isArmed) {
+    return elapsed >= triggerTimerDelay && elapsed <= triggerTimerDelay + SIGNAL_HIGH_INTERVAL;
   }
 
   return false;
@@ -496,36 +525,36 @@ bool isTriggerTimerDue() {
 void updateOutputPin() {
   PinStatus value = LOW;
 
-  if (isScheduledTimerDue()) {
+  if (isScheduledTimerDue(isScheduledTimerArmed)) {
     if (!hasScheduledTimerFired) {
       Log.print(millisRtc(false));
       Log.print(" ms (millisRtc) -> ");
       Log.println("Fire! (Scheduled Timer)");
-
-      hasScheduledTimerFired = true;
     }
 
     // Turn on
     value = HIGH;
+    hasScheduledTimerFired = true;
   } else {
     if (hasScheduledTimerFired) {
+      // Invalidate timer
       isScheduledTimerArmed = false;
     }
   }
 
-  if (isTriggerTimerDue()) {
+  if (isTriggerTimerDue(isTriggerTimerArmed)) {
     if (!hasTriggerTimerFired) {
       Log.print(millisRtc(false));
       Log.print(" ms (millisRtc) -> ");
       Log.println("Fire! (Trigger Timer)");
-
-      hasTriggerTimerFired = true;
     }
 
     // Turn on
     value = HIGH;
+    hasTriggerTimerFired = true;
   } else {
     if (hasTriggerTimerFired) {
+      // Invalidate timer
       isTriggerTimerArmed = false;
     }
   }
@@ -544,22 +573,36 @@ void updateOutputPin() {
 }
 
 void onTargetTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  unsigned long _now = now();
-  Log.print(String(_now) + " -> ");
+  // Synced time
+  unsigned long receivedTime = now();
+  Log.printTimestamp();
+  Log.print(String(receivedTime) + " ms (synced) -> ");
 
   // central wrote new value to characteristic
   Log.print("on -> Characteristic event (targetTimestamp), value: ");
 
-  unsigned long value = targetTimestampChar.value();
-  Log.print(value);
+  unsigned long targetTimestamp = targetTimestampChar.value();
+  Log.print(targetTimestamp);
 
   Log.print(", delta: ");
-  Log.println(value - _now);
+  Log.println(targetTimestamp - receivedTime);
 
-  armScheduledTimer(value);
+  unsigned long delay = targetTimestamp - now();
+  if (delay <= MAX_TIMER_DELAY) {
+    armScheduledTimer(delay);
+  } else {
+    // Delay is invalid (overflow?): Fire timer immediately.
+    Log.printTimestamp();
+    Log.println(String("WARNING: Delay (delay=") + String(delay) + ") is invalid! Timer will be fired immediately.");
+    armScheduledTimer(0);
+  }
+
+  updateOutputPin();
 }
 
 void onTriggerTimerWritten(BLEDevice central, BLECharacteristic characteristic) {
+  // Unsynced time
+  unsigned long receivedTime = millisRtc(false);
   Log.printTimestamp();
 
   // central wrote new value to characteristic
@@ -568,11 +611,25 @@ void onTriggerTimerWritten(BLEDevice central, BLECharacteristic characteristic) 
   byte value = triggerTimerChar.value();
   Log.println(value);
 
-  armTriggerTimer();
+  unsigned long targetTime = receivedTime + value;
+  // Correct network latency (guesstimation: 1/2 Connection-Interval)
+  targetTime -= getConnectionInterval() / 2;
+
+  unsigned long delay = targetTime - millisRtc(false);
+  if (delay <= MAX_TIMER_DELAY) {
+    armTriggerTimer(delay);
+  } else {
+    // Delay is invalid (overflow?): Fire timer immediately.
+    Log.printTimestamp();
+    Log.println(String("WARNING: Delay (delay=") + String(delay) + ") is invalid! Timer will be fired immediately.");
+    armTriggerTimer(0);
+  }
+
+  updateOutputPin();
 }
 
 void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteristic) {
-  unsigned long receivedTime = now();
+  unsigned long receivedTime = millisRtc(false);
 
   // central wrote new value to characteristic
   Log.print(receivedTime);
@@ -597,6 +654,8 @@ void onReferenceTimestampWritten(BLEDevice central, BLECharacteristic characteri
     default:
       break;
   }
+
+  updateOutputPin();
 }
 
 #ifdef DEBUG
